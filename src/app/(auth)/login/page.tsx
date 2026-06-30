@@ -1,25 +1,49 @@
 'use client'
 
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import Link from 'next/link'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { Eye, EyeOff, Mail, Lock } from 'lucide-react'
+import { Eye, EyeOff, Mail, Lock, AlertCircle, CheckCircle2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
+import { createClient } from '@/lib/supabase/client'
 
 export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
+  )
+}
+
+function LoginForm() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const justRegistered = searchParams.get('confirm') === '1'
   const [showPassword, setShowPassword] = useState(false)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
-    // Mock: simulate sign in delay
-    await new Promise(r => setTimeout(r, 1000))
-    setLoading(false)
+    setError('')
+
+    const supabase = createClient()
+    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
+
+    if (signInError) {
+      setError(signInError.message)
+      setLoading(false)
+      return
+    }
+
+    router.push('/home')
+    router.refresh()
   }
 
   return (
@@ -46,6 +70,20 @@ export default function LoginPage() {
           <CardContent className="p-8">
             <h1 className="text-2xl font-bold text-gray-900 mb-1">Welcome back</h1>
             <p className="text-gray-500 text-sm mb-6">Sign in to continue your journey</p>
+
+            {justRegistered && (
+              <div className="flex items-start gap-2 text-sm text-[#1F5E4A] bg-[#f0f7f4] border border-[#1F5E4A]/20 rounded-xl p-3 mb-4">
+                <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0" />
+                <span>Account created! Check your email to confirm, then sign in.</span>
+              </div>
+            )}
+
+            {error && (
+              <div className="flex items-start gap-2 text-sm text-red-600 bg-red-50 border border-red-100 rounded-xl p-3 mb-4">
+                <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+                <span>{error}</span>
+              </div>
+            )}
 
             <form onSubmit={handleSignIn} className="space-y-4">
               <div>

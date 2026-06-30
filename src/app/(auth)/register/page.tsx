@@ -2,11 +2,13 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Eye, EyeOff, Mail, Lock, User, Church, MapPin, Globe } from 'lucide-react'
+import { Eye, EyeOff, Mail, Lock, User, Church, MapPin, Globe, AlertCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
+import { createClient } from '@/lib/supabase/client'
 import type { UserRole } from '@/lib/types'
 
 const ROLES: { key: UserRole; label: string; description: string; emoji: string }[] = [
@@ -18,9 +20,11 @@ const ROLES: { key: UserRole; label: string; description: string; emoji: string 
 const COUNTRIES = ['Nigeria', 'Ghana', 'Kenya', 'South Africa', 'United States', 'United Kingdom', 'Canada', 'Other']
 
 export default function RegisterPage() {
+  const router = useRouter()
   const [step, setStep] = useState(1)
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
   const [form, setForm] = useState({
     full_name: '',
     email: '',
@@ -35,8 +39,54 @@ export default function RegisterPage() {
 
   const handleSubmit = async () => {
     setLoading(true)
-    await new Promise(r => setTimeout(r, 1200))
+    setError('')
+
+    const supabase = createClient()
+
+    const { data, error: signUpError } = await supabase.auth.signUp({
+      email: form.email,
+      password: form.password,
+      options: {
+        data: { full_name: form.full_name },
+      },
+    })
+
+    if (signUpError) {
+      setError(signUpError.message)
+      setLoading(false)
+      return
+    }
+
+    if (!data.user) {
+      setError('Could not create your account. Please try again.')
+      setLoading(false)
+      return
+    }
+
+    const { error: profileError } = await supabase.from('profiles').upsert({
+      id: data.user.id,
+      full_name: form.full_name,
+      role: form.role,
+      church_name: form.church_name || null,
+      country: form.country || null,
+      city: form.city || null,
+    })
+
+    if (profileError) {
+      setError(profileError.message)
+      setLoading(false)
+      return
+    }
+
     setLoading(false)
+
+    if (!data.session) {
+      // Email confirmation required before a session exists
+      router.push('/login?confirm=1')
+      return
+    }
+
+    router.push('/home')
   }
 
   const slideVariants = {
@@ -261,6 +311,13 @@ export default function RegisterPage() {
                         />
                       </div>
                     </div>
+
+                    {error && (
+                      <div className="flex items-start gap-2 text-sm text-red-600 bg-red-50 border border-red-100 rounded-xl p-3">
+                        <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+                        <span>{error}</span>
+                      </div>
+                    )}
 
                     <div className="flex gap-3 pt-2">
                       <Button variant="outline" onClick={() => setStep(2)} className="flex-1 h-11 rounded-xl">Back</Button>
