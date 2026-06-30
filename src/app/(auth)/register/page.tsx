@@ -47,7 +47,13 @@ export default function RegisterPage() {
       email: form.email,
       password: form.password,
       options: {
-        data: { full_name: form.full_name },
+        data: {
+          full_name: form.full_name,
+          role: form.role,
+          church_name: form.church_name || null,
+          country: form.country || null,
+          city: form.city || null,
+        },
       },
     })
 
@@ -63,21 +69,9 @@ export default function RegisterPage() {
       return
     }
 
-    const { error: profileError } = await supabase.from('profiles').upsert({
-      id: data.user.id,
-      full_name: form.full_name,
-      role: form.role,
-      church_name: form.church_name || null,
-      country: form.country || null,
-      city: form.city || null,
-    })
-
-    if (profileError) {
-      setError(profileError.message)
-      setLoading(false)
-      return
-    }
-
+    // The profiles row is created server-side by a trigger on auth.users
+    // (see supabase/schema.sql), since RLS blocks a client-side insert
+    // before the user's email is confirmed.
     setLoading(false)
 
     if (!data.session) {

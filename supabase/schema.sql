@@ -171,3 +171,32 @@ insert into discipleship_lessons (day_number, title, scripture, scripture_ref, d
 (5, 'The Holy Spirit', 'But the Advocate, the Holy Spirit, whom the Father will send in my name, will teach you all things.', 'John 14:26', 'You are not alone. The Holy Spirit lives inside you, guiding, comforting, and empowering you.', 'In what ways have you already felt the Holy Spirit''s guidance in your life?', 'Ask the Holy Spirit to guide you through one decision today.'),
 (6, 'The Church Family', 'And let us consider how we may spur one another on toward love and good deeds, not giving up meeting together.', 'Hebrews 10:24-25', 'God designed us for community. The church is not a building — it''s a family.', 'What has kept you from committing to a local church?', 'Visit or contact a local church this week.'),
 (7, 'Sharing Your Faith', 'Go and make disciples of all nations, baptizing them in the name of the Father and of the Son and of the Holy Spirit.', 'Matthew 28:19', 'Your story is the most powerful evangelism tool you have. Learn to share it naturally.', 'Who in your life needs to hear the Gospel?', 'Write your testimony in 3 sentences: Before, How, After.');
+
+-- Auto-create a profiles row whenever a new auth user signs up.
+-- Runs as the function owner (security definer), so it bypasses RLS —
+-- this is required because signUp() does not grant a session (and
+-- therefore no auth.uid()) until the user confirms their email.
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  insert into public.profiles (id, full_name, role, church_name, country, city)
+  values (
+    new.id,
+    new.raw_user_meta_data ->> 'full_name',
+    coalesce(new.raw_user_meta_data ->> 'role', 'BELIEVER'),
+    new.raw_user_meta_data ->> 'church_name',
+    new.raw_user_meta_data ->> 'country',
+    new.raw_user_meta_data ->> 'city'
+  )
+  on conflict (id) do nothing;
+  return new;
+end;
+$$;
+
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute function public.handle_new_user();
