@@ -10,7 +10,7 @@ import { createClient } from "@/lib/supabase/client"
 
 type PrayerItem = {
   id: string
-  author_name: string
+  userName: string
   request: string
   prayingCount: number
   createdAt: Date
@@ -62,7 +62,7 @@ export default function HomePage() {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         setPrayers((prayerData as any[]).map(p => ({
           id: p.id,
-          author_name: Array.isArray(p.profiles) ? p.profiles[0]?.full_name ?? 'Anonymous' : p.profiles?.full_name ?? 'Anonymous',
+          userName: Array.isArray(p.profiles) ? p.profiles[0]?.full_name ?? 'Anonymous' : p.profiles?.full_name ?? 'Anonymous',
           request: p.content,
           prayingCount: p.prayer_count,
           createdAt: new Date(p.created_at),
