@@ -1,49 +1,70 @@
 "use client"
 
-import React from "react"
+import { useEffect, useState } from "react"
 import { motion } from "framer-motion"
-import { Settings, Edit3, CheckCircle } from "lucide-react"
+import { Settings, Edit3, CheckCircle, Loader2 } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { BADGES } from "@/lib/constants"
-
-const UNLOCKED_BADGES = ["first_prayer", "first_followup", "first_disciple", "bible_100"]
-
-const MOCK_ACTIVITY = [
-  { text: "Prayed for Emmanuel Chukwu's healing", time: "2 hours ago", icon: "🙏" },
-  { text: "Completed Day 7 of the Discipleship Journey", time: "Yesterday", icon: "✅" },
-  { text: "Shared a testimony in Community", time: "2 days ago", icon: "✝️" },
-  { text: "Registered Fatima Abdullahi as a new believer", time: "1 week ago", icon: "🌱" },
-]
+import { createClient } from "@/lib/supabase/client"
+import type { Profile } from "@/lib/types"
 
 export default function ProfilePage() {
+  const [profile, setProfile] = useState<Profile | null>(null)
+  const [unlockedBadges, setUnlockedBadges] = useState<string[]>([])
+  const [postCount, setPostCount] = useState(0)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function load() {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      const [{ data: prof }, { data: badges }, { count }] = await Promise.all([
+        supabase.from('profiles').select('*').eq('id', user.id).single(),
+        supabase.from('badges_earned').select('badge_key').eq('user_id', user.id),
+        supabase.from('posts').select('*', { count: 'exact', head: true }).eq('author_id', user.id),
+      ])
+
+      if (prof) setProfile(prof as Profile)
+      if (badges) setUnlockedBadges(badges.map((b: { badge_key: string }) => b.badge_key))
+      if (count !== null) setPostCount(count)
+      setLoading(false)
+    }
+    load()
+  }, [])
+
+  const initials = profile?.full_name
+    ? profile.full_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+    : '?'
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Loader2 className="w-6 h-6 animate-spin text-[#1F5E4A]" />
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
       {/* Cover + Avatar */}
       <div className="relative">
-        {/* Cover */}
         <div
           className="h-36 rounded-2xl overflow-hidden"
           style={{ background: "linear-gradient(135deg, #1F5E4A 0%, #2d7a61 60%, #D4A72C 100%)" }}
-        >
-          <div className="absolute inset-0 opacity-20"
-            style={{
-              backgroundImage: "radial-gradient(circle at 30% 70%, rgba(255,255,255,0.3) 0%, transparent 50%)",
-            }}
-          />
-        </div>
+        />
 
-        {/* Avatar */}
         <div className="absolute bottom-0 left-5 translate-y-1/2">
           <Avatar className="h-20 w-20 ring-4 ring-white shadow-lg">
-            <AvatarImage src="" />
-            <AvatarFallback className="text-2xl font-black">JD</AvatarFallback>
+            <AvatarImage src={profile?.avatar_url ?? ''} />
+            <AvatarFallback className="text-2xl font-black bg-[#1F5E4A]/10 text-[#1F5E4A]">{initials}</AvatarFallback>
           </Avatar>
         </div>
 
-        {/* Edit + Settings buttons */}
         <div className="absolute bottom-3 right-3 flex gap-2">
           <button className="w-8 h-8 rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center shadow hover:bg-white transition-colors">
             <Settings size={15} className="text-gray-600" />
@@ -56,10 +77,10 @@ export default function ProfilePage() {
         <div className="flex items-start justify-between">
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-xl font-black text-[#222222]">John Doe</h1>
-              <CheckCircle size={18} className="text-[#1F5E4A]" />
+              <h1 className="text-xl font-black text-[#222222]">{profile?.full_name ?? 'Your Name'}</h1>
+              {profile?.is_verified && <CheckCircle size={18} className="text-[#1F5E4A]" />}
             </div>
-            <Badge variant="default" className="mt-1 text-xs">Mentor</Badge>
+            <Badge variant="default" className="mt-1 text-xs capitalize">{profile?.role?.toLowerCase() ?? 'believer'}</Badge>
           </div>
           <Button variant="secondary" size="sm" className="gap-1.5">
             <Edit3 size={14} />
@@ -67,22 +88,31 @@ export default function ProfilePage() {
           </Button>
         </div>
 
-        <p className="text-gray-500 text-sm mt-2 leading-relaxed">
-          Passionate about making disciples. Serving at Redeemed Church Lagos. Follow-up leader & mentor.
-        </p>
+        {profile?.bio ? (
+          <p className="text-gray-500 text-sm mt-2 leading-relaxed">{profile.bio}</p>
+        ) : (
+          <p className="text-gray-400 text-sm mt-2 italic">No bio yet — tap Edit Profile to add one.</p>
+        )}
+
+        <div className="flex gap-4 mt-3 text-xs text-gray-500 flex-wrap">
+          {profile?.church_name && <span>⛪ {profile.church_name}</span>}
+          {profile?.city && profile?.country && <span>📍 {profile.city}, {profile.country}</span>}
+        </div>
 
         {/* Stats */}
         <div className="flex gap-6 mt-4">
-          {[
-            { label: "Posts", value: "24" },
-            { label: "Following", value: "89" },
-            { label: "Followers", value: "143" },
-          ].map((s) => (
-            <div key={s.label} className="text-center">
-              <p className="font-black text-xl text-[#1F5E4A]">{s.value}</p>
-              <p className="text-xs text-gray-400">{s.label}</p>
-            </div>
-          ))}
+          <div className="text-center">
+            <p className="font-black text-xl text-[#1F5E4A]">{postCount}</p>
+            <p className="text-xs text-gray-400">Posts</p>
+          </div>
+          <div className="text-center">
+            <p className="font-black text-xl text-[#1F5E4A]">{profile?.prayer_streak ?? 0}</p>
+            <p className="text-xs text-gray-400">Prayer Streak</p>
+          </div>
+          <div className="text-center">
+            <p className="font-black text-xl text-[#1F5E4A]">{profile?.discipleship_day ?? 1}</p>
+            <p className="text-xs text-gray-400">Journey Day</p>
+          </div>
         </div>
       </div>
 
@@ -92,12 +122,12 @@ export default function ProfilePage() {
       <section>
         <div className="section-header">
           <h2 className="section-title">Badges</h2>
-          <span className="text-xs text-gray-400">{UNLOCKED_BADGES.length}/{BADGES.length} earned</span>
+          <span className="text-xs text-gray-400">{unlockedBadges.length}/{BADGES.length} earned</span>
         </div>
 
         <div className="grid grid-cols-4 gap-3">
           {BADGES.map((badge, i) => {
-            const unlocked = UNLOCKED_BADGES.includes(badge.id)
+            const unlocked = unlockedBadges.includes(badge.id)
             return (
               <motion.div
                 key={badge.id}
@@ -117,33 +147,6 @@ export default function ProfilePage() {
               </motion.div>
             )
           })}
-        </div>
-      </section>
-
-      <Separator />
-
-      {/* Recent activity */}
-      <section>
-        <div className="section-header">
-          <h2 className="section-title">Recent Activity</h2>
-        </div>
-
-        <div className="space-y-3">
-          {MOCK_ACTIVITY.map((activity, i) => (
-            <motion.div
-              key={i}
-              initial={{ opacity: 0, x: -12 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: i * 0.08 }}
-              className="flex items-start gap-3 p-3 rounded-xl hover:bg-[#e8f4ef]/50 transition-colors"
-            >
-              <span className="text-xl shrink-0">{activity.icon}</span>
-              <div>
-                <p className="text-sm text-[#222222] font-medium leading-tight">{activity.text}</p>
-                <p className="text-xs text-gray-400 mt-0.5">{activity.time}</p>
-              </div>
-            </motion.div>
-          ))}
         </div>
       </section>
     </div>
