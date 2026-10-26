@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { motion } from "framer-motion"
 import { Mail, ArrowLeft, CheckCircle2, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -14,6 +14,11 @@ export default function ForgotPasswordPage() {
   const [loading, setLoading] = useState(false)
   const [sent, setSent] = useState(false)
   const [error, setError] = useState("")
+
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("error") === "link_expired")
+      setError("That reset link has expired or was already used. Enter your email to get a new one.")
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

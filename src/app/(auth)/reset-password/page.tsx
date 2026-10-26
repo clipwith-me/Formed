@@ -38,6 +38,8 @@ export default function ResetPasswordPage() {
       }
       const { data } = await supabase.auth.getSession()
       if (data.session) setSessionReady(true)
+      else if (!window.location.hash.includes("access_token"))
+        setError("This reset link couldn't be verified. Request a new one and open it on the same device.")
     }
     init()
 
@@ -53,7 +55,11 @@ export default function ResetPasswordPage() {
 
     const supabase = createClient()
     const { error: err } = await supabase.auth.updateUser({ password })
-    if (err) { setError(err.message); setLoading(false); return }
+    if (err) {
+      setError(/session missing/i.test(err.message) ? "Your reset session has expired. Request a new reset link." : err.message)
+      setLoading(false)
+      return
+    }
 
     setDone(true)
     setTimeout(() => router.push("/home"), 2500)
