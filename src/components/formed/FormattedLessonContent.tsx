@@ -13,7 +13,7 @@ export function FormattedLessonContent({ lesson }: Props) {
       {lesson.scripture && (
         <div className="border-l-4 border-[#D4A72C] bg-[#fdf8ec] rounded-r-xl pl-5 pr-4 py-4">
           <p className="text-gray-700 italic text-base leading-relaxed font-serif">
-            "{lesson.scripture}"
+            &ldquo;{lesson.scripture}&rdquo;
           </p>
           {lesson.scripture_ref && (
             <p className="mt-2 text-[#9a7820] text-xs font-semibold uppercase tracking-widest">

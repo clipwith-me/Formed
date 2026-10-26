@@ -1,9 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server'
+﻿import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 
-const PUBLIC_ROUTES = ['/', '/login', '/register', '/forgot-password']
+const PUBLIC_ROUTES = ['/', '/login', '/register', '/forgot-password', '/reset-password']
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // Allow public routes and API routes
@@ -41,8 +41,8 @@ export async function middleware(request: NextRequest) {
   )
 
   const {
-    data: { session },
-  } = await supabase.auth.getSession()
+    data: { user },
+  } = await supabase.auth.getUser()
 
   // Protected routes — redirect to login if no session
   const isProtectedRoute =
@@ -54,16 +54,17 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/messages') ||
     pathname.startsWith('/profile') ||
     pathname.startsWith('/community') ||
+    pathname.startsWith('/library') ||
     pathname.startsWith('/admin')
 
-  if (isProtectedRoute && !session) {
+  if (isProtectedRoute && !user) {
     const loginUrl = new URL('/login', request.url)
     loginUrl.searchParams.set('redirect', pathname)
     return NextResponse.redirect(loginUrl)
   }
 
   // Redirect logged-in users away from auth pages
-  if (session && (pathname === '/login' || pathname === '/register')) {
+  if (user && (pathname === '/login' || pathname === '/register')) {
     return NextResponse.redirect(new URL('/home', request.url))
   }
 
@@ -72,6 +73,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|mp4|webm|ico|js)$).*)',
   ],
 }

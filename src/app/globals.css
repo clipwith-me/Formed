@@ -39,7 +39,26 @@
   --color-formed-muted: #9ca3af;
   --shadow-soft: 0 2px 16px 0 rgba(0,0,0,0.3);
   --shadow-card: 0 4px 24px 0 rgba(0,0,0,0.4);
+  color-scheme: dark;
 }
+
+/* Dark mode overrides for hardcoded Tailwind colors */
+[data-theme="dark"] .bg-white { background-color: #1a2e26 !important; }
+[data-theme="dark"] .bg-white\/90 { background-color: rgba(26,46,38,0.92) !important; }
+[data-theme="dark"] .bg-gray-50 { background-color: #152319 !important; }
+[data-theme="dark"] .bg-gray-100 { background-color: #1e3a2f !important; }
+[data-theme="dark"] .border-gray-100 { border-color: #1e3a2f !important; }
+[data-theme="dark"] .border-gray-200 { border-color: #1e3a2f !important; }
+[data-theme="dark"] .text-gray-800 { color: #e5e7eb !important; }
+[data-theme="dark"] .text-gray-700 { color: #d1d5db !important; }
+[data-theme="dark"] .text-gray-600 { color: #9ca3af !important; }
+[data-theme="dark"] .text-gray-500 { color: #9ca3af !important; }
+[data-theme="dark"] .text-gray-400 { color: #6b7280 !important; }
+[data-theme="dark"] .text-\[\#222222\] { color: #f3f4f6 !important; }
+[data-theme="dark"] .text-\[\#1a1a1a\] { color: #f3f4f6 !important; }
+[data-theme="dark"] .shadow-sm { box-shadow: 0 1px 4px rgba(0,0,0,0.4) !important; }
+[data-theme="dark"] aside.bg-white { background-color: #0f1a16 !important; }
+[data-theme="dark"] nav .bg-white\/90 { background-color: rgba(15,26,22,0.95) !important; }
 
 @layer base {
   * {

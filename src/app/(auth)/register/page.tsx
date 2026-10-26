@@ -4,20 +4,24 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Eye, EyeOff, Mail, Lock, User, Church, MapPin, Globe, AlertCircle } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { Eye, EyeOff, Mail, Lock, User, Church, MapPin, Globe, AlertCircle, Sprout, HandHeart, Compass, Check } from 'lucide-react'
 import { Input } from '@/components/ui/input'
-import { Card, CardContent } from '@/components/ui/card'
 import { createClient } from '@/lib/supabase/client'
+import { AuthShell } from '@/components/formed/AuthShell'
 import type { UserRole } from '@/lib/types'
 
-const ROLES: { key: UserRole; label: string; description: string; emoji: string }[] = [
-  { key: 'BELIEVER', label: 'New Believer', description: 'I recently gave my life to Christ', emoji: '🌱' },
-  { key: 'VOLUNTEER', label: 'Volunteer', description: 'I want to help disciple new believers', emoji: '🤝' },
-  { key: 'MENTOR', label: 'Mentor', description: 'I mentor and coach others in their faith', emoji: '✨' },
+const ROLES: { key: UserRole; label: string; description: string; icon: typeof Sprout }[] = [
+  { key: 'BELIEVER', label: 'Believer', description: 'I want to grow in my faith', icon: Sprout },
+  { key: 'VOLUNTEER', label: 'Volunteer', description: 'I want to help follow up new believers', icon: HandHeart },
+  { key: 'MENTOR', label: 'Mentor', description: 'I disciple and coach others', icon: Compass },
 ]
 
 const COUNTRIES = ['Nigeria', 'Ghana', 'Kenya', 'South Africa', 'United States', 'United Kingdom', 'Canada', 'Other']
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const field = 'h-12 rounded-xl border-[#E4DDCC] bg-white pl-10'
+const label = 'mb-1.5 block text-sm font-medium text-[#1C2B25]'
+const primary = 'flex h-12 flex-1 items-center justify-center gap-2 rounded-full bg-[#1F5E4A] font-semibold text-white transition hover:brightness-110 disabled:opacity-60'
+const secondary = 'h-12 flex-1 rounded-full border border-[#E4DDCC] bg-white font-medium text-[#1C2B25] transition hover:border-[#1F5E4A]/40'
 
 export default function RegisterPage() {
   const router = useRouter()
@@ -35,24 +39,34 @@ export default function RegisterPage() {
     city: '',
   })
 
-  const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }))
+  const set = (k: keyof typeof form, v: string) => setForm(f => ({ ...f, [k]: v }))
 
-  const handleSubmit = async () => {
+  const nextFromAccount = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (form.full_name.trim().length < 2) return setError('Please enter your full name.')
+    if (!EMAIL_RE.test(form.email.trim())) return setError('Please enter a valid email address.')
+    if (form.password.length < 8) return setError('Your password needs at least 8 characters.')
+    setError('')
+    setStep(2)
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
     setLoading(true)
     setError('')
 
     const supabase = createClient()
-
     const { data, error: signUpError } = await supabase.auth.signUp({
-      email: form.email,
+      email: form.email.trim(),
       password: form.password,
       options: {
+        emailRedirectTo: `${window.location.origin}/api/auth/callback?next=/home`,
         data: {
-          full_name: form.full_name,
+          full_name: form.full_name.trim(),
           role: form.role,
-          church_name: form.church_name || null,
+          church_name: form.church_name.trim() || null,
           country: form.country || null,
-          city: form.city || null,
+          city: form.city.trim() || null,
         },
       },
     })
@@ -63,285 +77,159 @@ export default function RegisterPage() {
       return
     }
 
-    if (!data.user) {
-      setError('Could not create your account. Please try again.')
+    // Supabase hides existing accounts by returning a user with no identities.
+    if (!data.user || data.user.identities?.length === 0) {
+      setError('An account with this email already exists. Try signing in instead.')
       setLoading(false)
+      setStep(1)
       return
     }
 
-    // The profiles row is created server-side by a trigger on auth.users
-    // (see supabase/schema.sql), since RLS blocks a client-side insert
-    // before the user's email is confirmed.
     setLoading(false)
-
-    if (!data.session) {
-      // Email confirmation required before a session exists
-      router.push('/login?confirm=1')
-      return
-    }
-
-    router.push('/home')
+    router.push(data.session ? '/home' : '/login?confirm=1')
   }
 
-  const slideVariants = {
-    enter: (dir: number) => ({ x: dir * 60, opacity: 0 }),
-    center: { x: 0, opacity: 1 },
-    exit: (dir: number) => ({ x: -dir * 60, opacity: 0 }),
-  }
+  const errorBox =
+    error ? (
+      <div role="alert" className="flex items-start gap-2 rounded-xl border border-red-100 bg-red-50 p-3 text-sm text-red-700">
+        <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+        <span>{error}</span>
+      </div>
+    ) : null
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#f0f7f4] via-white to-[#fdf8ec] px-4 py-8">
-      <motion.div
-        initial={{ opacity: 0, y: 24 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="w-full max-w-md"
-      >
-        {/* Logo */}
-        <div className="text-center mb-6">
-          <span className="text-3xl font-extrabold text-[#1F5E4A]">FORMED</span>
-          <span className="text-3xl font-extrabold text-[#D4A72C]">.</span>
-        </div>
+    <AuthShell>
+      <div className="mb-8 flex items-center gap-2" aria-label={`Step ${step} of 3`}>
+        {[1, 2, 3].map(s => (
+          <span key={s} className={`h-1 flex-1 rounded-full transition-colors duration-300 ${s <= step ? 'bg-[#1F5E4A]' : 'bg-[#E4DDCC]'}`} />
+        ))}
+      </div>
+      <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#C9A13B]">Step {step} of 3</p>
 
-        {/* Step indicator */}
-        <div className="flex items-center justify-center gap-3 mb-6">
-          {[1, 2, 3].map(s => (
-            <div key={s} className="flex items-center gap-3">
-              <div
-                className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-300 ${
-                  s < step
-                    ? 'bg-[#1F5E4A] text-white'
-                    : s === step
-                    ? 'bg-[#1F5E4A] text-white ring-4 ring-[#1F5E4A]/20'
-                    : 'bg-gray-200 text-gray-500'
-                }`}
-              >
-                {s < step ? '✓' : s}
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={step}
+          initial={{ opacity: 0, x: 24 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: -24 }}
+          transition={{ duration: 0.25 }}
+        >
+          {step === 1 && (
+            <form onSubmit={nextFromAccount} noValidate>
+              <h1 className="mt-3 font-[family-name:var(--font-cormorant)] text-4xl font-medium text-[#123A2E]">Begin your journey.</h1>
+              <p className="mt-2 text-[#5E6B65]">Free for every believer. Takes a minute.</p>
+              <div className="mt-8 space-y-4">
+                {errorBox}
+                <div>
+                  <label htmlFor="name" className={label}>Full name</label>
+                  <div className="relative">
+                    <User className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8A948F]" />
+                    <Input id="name" autoComplete="name" placeholder="Your full name" value={form.full_name} onChange={e => set('full_name', e.target.value)} className={field} />
+                  </div>
+                </div>
+                <div>
+                  <label htmlFor="email" className={label}>Email</label>
+                  <div className="relative">
+                    <Mail className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8A948F]" />
+                    <Input id="email" type="email" autoComplete="email" placeholder="you@example.com" value={form.email} onChange={e => set('email', e.target.value)} className={field} />
+                  </div>
+                </div>
+                <div>
+                  <label htmlFor="password" className={label}>Password</label>
+                  <div className="relative">
+                    <Lock className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8A948F]" />
+                    <Input id="password" type={showPassword ? 'text' : 'password'} autoComplete="new-password" placeholder="At least 8 characters" value={form.password} onChange={e => set('password', e.target.value)} className={`${field} pr-11`} />
+                    <button type="button" onClick={() => setShowPassword(s => !s)} aria-label={showPassword ? 'Hide password' : 'Show password'} className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg text-[#8A948F] hover:text-[#1C2B25]">
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+                <div className="flex pt-2"><button type="submit" className={primary}>Continue</button></div>
               </div>
-              {s < 3 && (
-                <div className={`w-8 h-0.5 transition-all duration-300 ${s < step ? 'bg-[#1F5E4A]' : 'bg-gray-200'}`} />
-              )}
+            </form>
+          )}
+
+          {step === 2 && (
+            <div>
+              <h1 className="mt-3 font-[family-name:var(--font-cormorant)] text-4xl font-medium text-[#123A2E]">How will you take part?</h1>
+              <p className="mt-2 text-[#5E6B65]">You can change this later.</p>
+              <div className="mt-8 space-y-3" role="radiogroup">
+                {ROLES.map(role => {
+                  const active = form.role === role.key
+                  return (
+                    <button
+                      key={role.key}
+                      type="button"
+                      role="radio"
+                      aria-checked={active}
+                      onClick={() => set('role', role.key)}
+                      className={`flex w-full items-center gap-4 rounded-2xl border p-4 text-left transition ${active ? 'border-[#1F5E4A] bg-[#EEF4F0]' : 'border-[#E4DDCC] bg-white hover:border-[#1F5E4A]/40'}`}
+                    >
+                      <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${active ? 'bg-[#1F5E4A] text-white' : 'bg-[#F5F1E8] text-[#1F5E4A]'}`}>
+                        <role.icon className="h-5 w-5" />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block font-semibold text-[#123A2E]">{role.label}</span>
+                        <span className="block text-sm text-[#5E6B65]">{role.description}</span>
+                      </span>
+                      {active && <Check className="h-5 w-5 text-[#1F5E4A]" />}
+                    </button>
+                  )
+                })}
+              </div>
+              <div className="mt-6 flex gap-3">
+                <button type="button" onClick={() => setStep(1)} className={secondary}>Back</button>
+                <button type="button" onClick={() => setStep(3)} className={primary}>Continue</button>
+              </div>
             </div>
-          ))}
-        </div>
+          )}
 
-        <Card className="shadow-xl border-0 rounded-2xl overflow-hidden">
-          <div className="h-1 bg-gradient-to-r from-[#1F5E4A] via-[#2d7a61] to-[#D4A72C]" />
-          <CardContent className="p-8">
-            <AnimatePresence mode="wait" custom={1}>
-              {step === 1 && (
-                <motion.div
-                  key="step1"
-                  custom={1}
-                  variants={slideVariants}
-                  initial="enter"
-                  animate="center"
-                  exit="exit"
-                  transition={{ duration: 0.3 }}
-                >
-                  <h2 className="text-xl font-bold text-gray-900 mb-1">Create your account</h2>
-                  <p className="text-gray-500 text-sm mb-6">Your journey starts here</p>
-
-                  <div className="space-y-4">
-                    <div>
-                      <label className="text-sm font-medium text-gray-700 mb-1 block">Full Name</label>
-                      <div className="relative">
-                        <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                        <Input
-                          placeholder="John Doe"
-                          value={form.full_name}
-                          onChange={e => set('full_name', e.target.value)}
-                          className="pl-10 h-11 border-gray-200"
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-700 mb-1 block">Email</label>
-                      <div className="relative">
-                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                        <Input
-                          type="email"
-                          placeholder="you@example.com"
-                          value={form.email}
-                          onChange={e => set('email', e.target.value)}
-                          className="pl-10 h-11 border-gray-200"
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-700 mb-1 block">Password</label>
-                      <div className="relative">
-                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                        <Input
-                          type={showPassword ? 'text' : 'password'}
-                          placeholder="••••••••"
-                          value={form.password}
-                          onChange={e => set('password', e.target.value)}
-                          className="pl-10 pr-10 h-11 border-gray-200"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowPassword(!showPassword)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                        >
-                          {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                        </button>
-                      </div>
-                    </div>
-                    <Button
-                      onClick={() => setStep(2)}
-                      disabled={!form.full_name || !form.email || !form.password}
-                      className="w-full h-11 bg-[#1F5E4A] hover:bg-[#174d3c] text-white font-semibold rounded-xl"
-                    >
-                      Continue
-                    </Button>
+          {step === 3 && (
+            <form onSubmit={handleSubmit}>
+              <h1 className="mt-3 font-[family-name:var(--font-cormorant)] text-4xl font-medium text-[#123A2E]">Where are you?</h1>
+              <p className="mt-2 text-[#5E6B65]">Helps us connect you with believers near you. All optional.</p>
+              <div className="mt-8 space-y-4">
+                <div>
+                  <label htmlFor="church" className={label}>Church</label>
+                  <div className="relative">
+                    <Church className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8A948F]" />
+                    <Input id="church" placeholder="Your church name" value={form.church_name} onChange={e => set('church_name', e.target.value)} className={field} />
                   </div>
-                </motion.div>
-              )}
-
-              {step === 2 && (
-                <motion.div
-                  key="step2"
-                  custom={1}
-                  variants={slideVariants}
-                  initial="enter"
-                  animate="center"
-                  exit="exit"
-                  transition={{ duration: 0.3 }}
-                >
-                  <h2 className="text-xl font-bold text-gray-900 mb-1">Who are you?</h2>
-                  <p className="text-gray-500 text-sm mb-6">Choose the role that best describes you</p>
-
-                  <div className="space-y-3 mb-6">
-                    {ROLES.map(role => (
-                      <button
-                        key={role.key}
-                        onClick={() => set('role', role.key)}
-                        className={`w-full text-left p-4 rounded-xl border-2 transition-all duration-200 ${
-                          form.role === role.key
-                            ? 'border-[#1F5E4A] bg-[#f0f7f4]'
-                            : 'border-gray-200 hover:border-gray-300 bg-white'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <span className="text-2xl">{role.emoji}</span>
-                          <div>
-                            <p className={`font-semibold text-sm ${form.role === role.key ? 'text-[#1F5E4A]' : 'text-gray-900'}`}>
-                              {role.label}
-                            </p>
-                            <p className="text-xs text-gray-500 mt-0.5">{role.description}</p>
-                          </div>
-                          {form.role === role.key && (
-                            <div className="ml-auto w-5 h-5 rounded-full bg-[#1F5E4A] flex items-center justify-center">
-                              <span className="text-white text-xs">✓</span>
-                            </div>
-                          )}
-                        </div>
-                      </button>
-                    ))}
+                </div>
+                <div>
+                  <label htmlFor="country" className={label}>Country</label>
+                  <div className="relative">
+                    <Globe className="pointer-events-none absolute left-3.5 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[#8A948F]" />
+                    <select id="country" value={form.country} onChange={e => set('country', e.target.value)} className="h-12 w-full appearance-none rounded-xl border border-[#E4DDCC] bg-white pl-10 pr-4 text-sm focus:border-[#1F5E4A] focus:outline-none">
+                      <option value="">Select country</option>
+                      {COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
                   </div>
-
-                  <div className="flex gap-3">
-                    <Button variant="outline" onClick={() => setStep(1)} className="flex-1 h-11 rounded-xl">Back</Button>
-                    <Button
-                      onClick={() => setStep(3)}
-                      className="flex-1 h-11 bg-[#1F5E4A] hover:bg-[#174d3c] text-white font-semibold rounded-xl"
-                    >
-                      Continue
-                    </Button>
+                </div>
+                <div>
+                  <label htmlFor="city" className={label}>City</label>
+                  <div className="relative">
+                    <MapPin className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8A948F]" />
+                    <Input id="city" autoComplete="address-level2" placeholder="Your city" value={form.city} onChange={e => set('city', e.target.value)} className={field} />
                   </div>
-                </motion.div>
-              )}
+                </div>
+                {errorBox}
+                <div className="flex gap-3 pt-2">
+                  <button type="button" onClick={() => setStep(2)} className={secondary}>Back</button>
+                  <button type="submit" disabled={loading} className={primary}>
+                    {loading ? <><span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />Creating…</> : 'Create account'}
+                  </button>
+                </div>
+              </div>
+            </form>
+          )}
+        </motion.div>
+      </AnimatePresence>
 
-              {step === 3 && (
-                <motion.div
-                  key="step3"
-                  custom={1}
-                  variants={slideVariants}
-                  initial="enter"
-                  animate="center"
-                  exit="exit"
-                  transition={{ duration: 0.3 }}
-                >
-                  <h2 className="text-xl font-bold text-gray-900 mb-1">Your location</h2>
-                  <p className="text-gray-500 text-sm mb-6">Help us connect you with your local community</p>
-
-                  <div className="space-y-4">
-                    <div>
-                      <label className="text-sm font-medium text-gray-700 mb-1 block">Church (optional)</label>
-                      <div className="relative">
-                        <Church className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                        <Input
-                          placeholder="Your church name"
-                          value={form.church_name}
-                          onChange={e => set('church_name', e.target.value)}
-                          className="pl-10 h-11 border-gray-200"
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-700 mb-1 block">Country</label>
-                      <div className="relative">
-                        <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 z-10" />
-                        <select
-                          value={form.country}
-                          onChange={e => set('country', e.target.value)}
-                          className="w-full pl-10 h-11 border border-gray-200 rounded-md text-sm bg-white appearance-none focus:outline-none focus:border-[#1F5E4A]"
-                        >
-                          <option value="">Select country</option>
-                          {COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
-                        </select>
-                      </div>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-700 mb-1 block">City</label>
-                      <div className="relative">
-                        <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                        <Input
-                          placeholder="Your city"
-                          value={form.city}
-                          onChange={e => set('city', e.target.value)}
-                          className="pl-10 h-11 border-gray-200"
-                        />
-                      </div>
-                    </div>
-
-                    {error && (
-                      <div className="flex items-start gap-2 text-sm text-red-600 bg-red-50 border border-red-100 rounded-xl p-3">
-                        <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
-                        <span>{error}</span>
-                      </div>
-                    )}
-
-                    <div className="flex gap-3 pt-2">
-                      <Button variant="outline" onClick={() => setStep(2)} className="flex-1 h-11 rounded-xl">Back</Button>
-                      <Button
-                        onClick={handleSubmit}
-                        disabled={loading}
-                        className="flex-1 h-11 bg-[#1F5E4A] hover:bg-[#174d3c] text-white font-semibold rounded-xl"
-                      >
-                        {loading ? (
-                          <span className="flex items-center gap-2">
-                            <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                            Creating...
-                          </span>
-                        ) : 'Create my account'}
-                      </Button>
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            <p className="text-center text-sm text-gray-500 mt-6">
-              Already have an account?{' '}
-              <Link href="/login" className="text-[#1F5E4A] font-semibold hover:underline">
-                Sign in
-              </Link>
-            </p>
-          </CardContent>
-        </Card>
-      </motion.div>
-    </div>
+      <p className="mt-8 text-center text-sm text-[#5E6B65]">
+        Already have an account?{' '}
+        <Link href="/login" className="font-semibold text-[#1F5E4A] hover:underline">Sign in</Link>
+      </p>
+    </AuthShell>
   )
 }

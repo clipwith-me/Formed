@@ -5,8 +5,7 @@
       "name": "formed-dev",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
-      "port": 3000,
-      "cwd": "C:\\Users\\HomePC\\Desktop\\formed"
+      "port": 3000
     }
   ]
 }

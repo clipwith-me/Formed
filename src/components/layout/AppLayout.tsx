@@ -5,6 +5,7 @@ import { ThemeProvider } from "next-themes"
 import { Sidebar } from "./Sidebar"
 import { BottomNav } from "./BottomNav"
 import { TopBar } from "./TopBar"
+import { SplashScreen } from "@/components/formed/SplashScreen"
 
 interface AppLayoutProps {
   children: React.ReactNode
@@ -13,6 +14,7 @@ interface AppLayoutProps {
 export function AppLayout({ children }: AppLayoutProps) {
   return (
     <ThemeProvider attribute="data-theme" defaultTheme="light" enableSystem={false}>
+      <SplashScreen />
       <div className="min-h-screen bg-[#FAFAF8]">
         {/* Desktop sidebar */}
         <Sidebar />

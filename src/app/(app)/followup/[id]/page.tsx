@@ -267,7 +267,7 @@ export default function BelieverDetailPage() {
 
         {activeTab === 'Notes' && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
-            <p className="text-sm text-gray-500">Write private notes about this believer's journey. Saved as a session note.</p>
+            <p className="text-sm text-gray-500">Write private notes about this believer&rsquo;s journey. Saved as a session note.</p>
             <Textarea placeholder="Write your notes here..." value={notes} onChange={e => setNotes(e.target.value)} className="min-h-[200px] resize-none border-gray-200 rounded-xl" />
             <Button onClick={handleSaveNotes} disabled={!notes.trim() || savingNotes} className="bg-[#1F5E4A] hover:bg-[#174d3c] text-white h-10 px-6 rounded-xl">
               {savingNotes ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Save Notes'}

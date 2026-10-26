@@ -31,8 +31,6 @@ type Profile = {
   prayer_streak: number
 }
 
-type LessonRow = { title: string; day_number: number }
-
 export default function HomePage() {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [lessonTitle, setLessonTitle] = useState('Your Journey Continues')
@@ -45,39 +43,66 @@ export default function HomePage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
-      const [{ data: prof }, { data: prayerData }, { data: postData }] = await Promise.all([
+      // Fetch all base data in parallel — no FK joins to avoid 400 errors
+      const [{ data: prof }, { data: prayerRows }, { data: postRows }] = await Promise.all([
         supabase.from('profiles').select('full_name, discipleship_day, prayer_streak').eq('id', user.id).single(),
-        supabase.from('prayer_requests').select('id, content, prayer_count, created_at, profiles(full_name)').eq('is_public', true).eq('is_answered', false).order('created_at', { ascending: false }).limit(3),
-        supabase.from('posts').select('id, content, like_count, comment_count, created_at, profiles(full_name, is_verified)').eq('type', 'TESTIMONY').eq('is_published', true).order('created_at', { ascending: false }).limit(3),
+        supabase.from('prayer_requests')
+          .select('id, author_id, content, prayer_count, created_at')
+          .eq('is_public', true).eq('is_answered', false)
+          .order('created_at', { ascending: false }).limit(3),
+        supabase.from('posts')
+          .select('*')
+          .eq('type', 'TESTIMONY')
+          .order('created_at', { ascending: false }).limit(3),
       ])
 
       if (prof) {
         setProfile(prof as Profile)
-        const day = prof.discipleship_day ?? 1
-        const { data: lesson } = await supabase.from('discipleship_lessons').select('title, day_number').eq('day_number', day).single()
-        if (lesson) setLessonTitle((lesson as LessonRow).title)
+        // discipleship_lessons may not exist yet — silently ignore 404
+        const day = (prof as Profile).discipleship_day ?? 1
+        const { data: lesson } = await supabase
+          .from('discipleship_lessons')
+          .select('title')
+          .eq('day_number', day)
+          .maybeSingle()
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        if (lesson) setLessonTitle((lesson as any).title)
       }
 
-      if (prayerData) {
+      // Collect unique author IDs and fetch names in one query
+      const prayerUserIds = (prayerRows ?? []).map(r => r.author_id).filter(Boolean)
+      const postAuthorIds = (postRows ?? []).map(r => r.author_id).filter(Boolean)
+      const allIds = [...new Set([...prayerUserIds, ...postAuthorIds])]
+
+      const nameMap: Record<string, string> = {}
+      if (allIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, full_name, is_verified')
+          .in('id', allIds)
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        setPrayers((prayerData as any[]).map(p => ({
+        ;(profiles ?? []).forEach((p: any) => { nameMap[p.id] = p.full_name ?? 'Anonymous' })
+      }
+
+      if (prayerRows) {
+        setPrayers(prayerRows.map(p => ({
           id: p.id,
-          userName: Array.isArray(p.profiles) ? p.profiles[0]?.full_name ?? 'Anonymous' : p.profiles?.full_name ?? 'Anonymous',
+          userName: nameMap[p.author_id] ?? 'Anonymous',
           request: p.content,
           prayingCount: p.prayer_count,
           createdAt: new Date(p.created_at),
         })))
       }
 
-      if (postData) {
+      if (postRows) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        setTestimonies((postData as any[]).map(p => ({
-          userName: Array.isArray(p.profiles) ? p.profiles[0]?.full_name ?? 'Anonymous' : p.profiles?.full_name ?? 'Anonymous',
-          testimony: p.content,
-          likes: p.like_count,
-          comments: p.comment_count,
+        setTestimonies((postRows as any[]).map((p: any) => ({
+          userName: nameMap[p.author_id] ?? 'Anonymous',
+          testimony: p.content ?? '',
+          likes: p.like_count ?? 0,
+          comments: p.comment_count ?? 0,
           createdAt: new Date(p.created_at),
-          isVerified: Array.isArray(p.profiles) ? p.profiles[0]?.is_verified ?? false : p.profiles?.is_verified ?? false,
+          isVerified: false,
         })))
       }
     }
