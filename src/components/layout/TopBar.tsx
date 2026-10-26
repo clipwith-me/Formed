@@ -1,7 +1,8 @@
 "use client"
 
 import React, { useEffect, useRef, useState } from "react"
-import { Bell, X, CheckCheck } from "lucide-react"
+import Link from "next/link"
+import { Bell, X, CheckCheck, CircleUser, User, LogOut } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { motion, AnimatePresence } from "framer-motion"
 import { formatDistanceToNow } from "date-fns"
@@ -19,6 +20,24 @@ export function TopBar() {
   const [notifs, setNotifs] = useState<Notif[]>([])
   const [unread, setUnread] = useState(0)
   const panelRef = useRef<HTMLDivElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [signingOut, setSigningOut] = useState(false)
+
+  useEffect(() => {
+    if (!menuOpen) return
+    const handler = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [menuOpen])
+
+  const handleSignOut = async () => {
+    setSigningOut(true)
+    await createClient().auth.signOut()
+    window.location.href = '/login'
+  }
 
   useEffect(() => {
     loadNotifs()
@@ -68,9 +87,34 @@ export function TopBar() {
   return (
     <header className="lg:hidden sticky top-0 z-40 bg-white/90 backdrop-blur-xl border-b border-gray-100 shadow-[0_2px_12px_rgba(31,94,74,0.05)]">
       <div className="flex items-center justify-between px-4 h-14">
-        <button className="w-9 h-9 flex items-center justify-center rounded-xl text-gray-400">
-          <span className="sr-only">Search</span>
-        </button>
+        <div className="relative" ref={menuRef}>
+          <button
+            onClick={() => setMenuOpen(o => !o)}
+            aria-label="Account menu"
+            aria-expanded={menuOpen}
+            className="w-9 h-9 flex items-center justify-center rounded-xl text-gray-500 hover:bg-[#e8f4ef] hover:text-[#1F5E4A] transition-colors"
+          >
+            <CircleUser size={22} />
+          </button>
+          <AnimatePresence>
+            {menuOpen && (
+              <motion.div
+                initial={{ opacity: 0, y: -8, scale: 0.96 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -8, scale: 0.96 }}
+                transition={{ duration: 0.15 }}
+                className="absolute left-0 top-11 w-52 bg-white rounded-2xl shadow-xl border border-gray-100 z-50 overflow-hidden py-1"
+              >
+                <Link href="/profile" onClick={() => setMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                  <User size={16} /> My profile
+                </Link>
+                <button onClick={handleSignOut} disabled={signingOut} className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-red-600 hover:bg-red-50 border-t border-gray-100 disabled:opacity-60">
+                  <LogOut size={16} /> {signingOut ? 'Signing out…' : 'Sign out'}
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
 
         <div className="flex items-center gap-1">
           <span className="text-xl font-black tracking-tight text-[#1F5E4A]">FORMED</span>
