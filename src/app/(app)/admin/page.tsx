@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import Link from "next/link"
-import { Send, Users, Bell, CheckCircle, Loader2, AlertCircle, ShieldAlert, BookOpen } from "lucide-react"
+import { Send, Users, Bell, CheckCircle, Loader2, AlertCircle, ShieldAlert, BookOpen, Images } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -103,6 +103,19 @@ export default function AdminPage() {
         <div>
           <p className="font-bold text-[#1F5E4A] text-sm">Curriculum Review</p>
           <p className="text-xs text-[#1F5E4A]/70">Manage and approve teaching resources</p>
+        </div>
+      </Link>
+
+      <Link
+        href="/admin/slides"
+        className="flex items-center gap-3 bg-amber-50 rounded-2xl p-4 hover:bg-amber-100 transition-colors group"
+      >
+        <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center">
+          <Images className="w-5 h-5 text-amber-600" />
+        </div>
+        <div>
+          <p className="font-bold text-amber-700 text-sm">Home Slides</p>
+          <p className="text-xs text-amber-700/70">Post designs, messages, videos and scriptures</p>
         </div>
       </Link>
 

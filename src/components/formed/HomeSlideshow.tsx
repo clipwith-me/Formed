@@ -6,6 +6,8 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion"
 import { ArrowRight, BookOpen, ChevronLeft, ChevronRight, HandHeart, Play, Share2 } from "lucide-react"
 import { getAllLessons } from "@/lib/curriculum"
 import { getApprovedResources, type TeachingResource } from "@/lib/video-library"
+import { createClient } from "@/lib/supabase/client"
+import { safeLink, safeMedia, youtubeEmbed, youtubeThumb, type HomeSlide } from "@/lib/home-slides"
 
 const SLIDE_MS = 7000
 const serif = "font-[family-name:var(--font-cormorant)]"
@@ -44,18 +46,101 @@ async function shareVerse(text: string, reference: string) {
   } catch {}
 }
 
+function SlideButton({ slide, light }: { slide: HomeSlide; light?: boolean }) {
+  const href = safeLink(slide.link_url)
+  if (!href) return null
+  return (
+    <Link
+      href={href}
+      {...(href.startsWith("https://") ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+      className={`${action} mt-4 w-fit ${light ? "bg-white text-[#123A2E]" : "bg-[#1F5E4A] text-white"}`}
+    >
+      {slide.link_label || "Learn more"} <ArrowRight size={15} />
+    </Link>
+  )
+}
+
+function renderCustom(s: HomeSlide, isPlaying: boolean, play: () => void, stop: () => void): React.ReactNode {
+  const media = safeMedia(s.media_url)
+  if (s.type === "DESIGN") {
+    if (!media) return null
+    const image = (
+      <span className="relative block h-full w-full overflow-hidden bg-[#123A2E]">
+        <img src={media} alt="" className="absolute inset-0 h-full w-full scale-110 object-cover opacity-40 blur-xl" />
+        <img src={media} alt={s.title ?? "FORMED announcement"} className="relative h-full w-full object-contain" />
+      </span>
+    )
+    const href = safeLink(s.link_url)
+    if (!href) return image
+    return <Link href={href} {...(href.startsWith("https://") ? { target: "_blank", rel: "noopener noreferrer" } : {})} className="block h-full w-full">{image}</Link>
+  }
+  if (s.type === "VIDEO") {
+    if (!media) return null
+    const embed = youtubeEmbed(media)
+    if (isPlaying) {
+      return embed
+        ? <iframe src={embed} title={s.title ?? "Video update"} allow="autoplay; encrypted-media; picture-in-picture" allowFullScreen className="h-full w-full border-0 bg-black" />
+        : <video src={media} controls autoPlay playsInline onEnded={stop} className="h-full w-full bg-black object-contain" />
+    }
+    const thumb = youtubeThumb(media)
+    return (
+      <button onClick={play} aria-label={`Play ${s.title ?? "video update"}`} className="relative block h-full w-full bg-[#123A2E] text-left text-white">
+        {thumb && <img src={thumb} alt="" className="absolute inset-0 h-full w-full object-cover" />}
+        {!thumb && <video src={`${media}#t=0.5`} muted playsInline preload="metadata" className="absolute inset-0 h-full w-full object-cover" />}
+        <span className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+        <span className="absolute left-1/2 top-[38%] flex h-16 w-16 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white/90">
+          <Play size={22} fill="#1F5E4A" stroke="#1F5E4A" className="ml-1" />
+        </span>
+        <span className="absolute bottom-10 left-6 right-6 sm:left-10">
+          <span className={`${label} block`} style={{ color: "#E2BE5C" }}>Video update</span>
+          {s.title && <span className="mt-1 line-clamp-2 block text-xl font-bold">{s.title}</span>}
+        </span>
+      </button>
+    )
+  }
+  if (s.type === "SCRIPTURE") {
+    return (
+      <div className="flex h-full flex-col justify-center p-6 pb-12 text-white sm:p-10 sm:pb-12" style={{ background: "linear-gradient(145deg,#1F5E4A,#123A2E 75%)" }}>
+        <blockquote className={`${serif} line-clamp-5 text-2xl leading-snug sm:text-[2rem]`}>&ldquo;{s.body}&rdquo;</blockquote>
+        <p className="mt-2 text-sm font-semibold" style={{ color: "#E2BE5C" }}>{s.title}</p>
+        <SlideButton slide={s} light />
+      </div>
+    )
+  }
+  return (
+    <div className="flex h-full flex-col justify-center p-6 pb-12 sm:p-10 sm:pb-12" style={{ background: "#F5F1E8", color: "#123A2E" }}>
+      <p className={label} style={{ color: "#8C6B14" }}>From FORMED</p>
+      <h2 className={`${serif} mt-3 line-clamp-2 text-3xl font-medium leading-tight sm:text-4xl`}>{s.title}</h2>
+      {s.body && <p className="mt-2 line-clamp-3 max-w-md text-sm" style={{ color: "#5E6B65" }}>{s.body}</p>}
+      <SlideButton slide={s} />
+    </div>
+  )
+}
+
 export function HomeSlideshow({ lessonTitle, testimony }: Props) {
   const reduceMotion = useReducedMotion()
   const [index, setIndex] = useState(0)
   const [direction, setDirection] = useState(1)
   const [paused, setPaused] = useState(false)
-  const [filmPlaying, setFilmPlaying] = useState(false)
+  const [playing, setPlaying] = useState<string | null>(null)
+  const filmPlaying = playing !== null
+  const setFilmPlaying = (on: boolean) => setPlaying(on ? "film" : null)
   const [day, setDay] = useState(0)
   const [teaching, setTeaching] = useState<TeachingResource | null>(null)
+  const [custom, setCustom] = useState<HomeSlide[]>([])
 
   useEffect(() => {
     setDay(dayOfYear())
     getApprovedResources({ limit: 1 }).then(r => setTeaching(r[0] ?? null)).catch(() => {})
+    // Row security returns only live slides to members, but admins can read all, so re-check here.
+    createClient().from("home_slides").select("*").order("sort_order").then(({ data }) => {
+      const now = Date.now()
+      setCustom(((data ?? []) as HomeSlide[]).filter(s =>
+        s.is_active &&
+        (!s.starts_at || new Date(s.starts_at).getTime() <= now) &&
+        (!s.ends_at || new Date(s.ends_at).getTime() > now)
+      ))
+    })
   }, [])
 
   const verses = useMemo(allVerses, [])
@@ -64,6 +149,10 @@ export function HomeSlideshow({ lessonTitle, testimony }: Props) {
 
   const slides = useMemo(() => {
     const list: { key: string; node: React.ReactNode }[] = [
+      ...custom.flatMap(s => {
+        const node = renderCustom(s, playing === s.id, () => setPlaying(s.id), () => setPlaying(null))
+        return node ? [{ key: s.id, node }] : []
+      }),
       {
         key: "verse",
         node: (
@@ -82,7 +171,7 @@ export function HomeSlideshow({ lessonTitle, testimony }: Props) {
       },
       {
         key: "film",
-        node: filmPlaying ? (
+        node: playing === "film" ? (
           <video
             src="/film/formed-welcome.mp4"
             poster="/film/poster.jpg"
@@ -176,13 +265,14 @@ export function HomeSlideshow({ lessonTitle, testimony }: Props) {
       ),
     })
     return list
-  }, [verse, verse2, filmPlaying, teaching, lessonTitle, testimony])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [verse, verse2, playing, teaching, lessonTitle, testimony, custom])
 
   const count = slides.length
   const current = index % count
 
   const go = useCallback((next: number, dir: number) => {
-    setFilmPlaying(false)
+    setPlaying(null)
     setDirection(dir)
     setIndex((next + count) % count)
   }, [count])
