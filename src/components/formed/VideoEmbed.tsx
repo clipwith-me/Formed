@@ -11,14 +11,26 @@ export default function VideoEmbed({ resource }: VideoEmbedProps) {
   // Never embed unverified content
   if (canEmbed(resource.review_status) && resource.embed_url) {
     return (
-      <div className="relative w-full aspect-video rounded-2xl overflow-hidden bg-black shadow-lg">
-        <iframe
-          src={resource.embed_url}
-          title={resource.title}
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-          allowFullScreen
-          className="absolute inset-0 w-full h-full border-0"
-        />
+      <div>
+        <div className="relative w-full aspect-video rounded-2xl overflow-hidden bg-black shadow-lg">
+          <iframe
+            src={resource.embed_url}
+            title={resource.title}
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowFullScreen
+            className="absolute inset-0 w-full h-full border-0"
+          />
+        </div>
+        {resource.ministry && (
+          <p className="mt-2 text-xs text-gray-500">
+            Video by {resource.ministry.name}, who own it.{" "}
+            {resource.ministry.website_url && (
+              <a href={resource.ministry.website_url} target="_blank" rel="noopener noreferrer" className="font-semibold text-[#1F5E4A] underline">
+                Visit {resource.ministry.name}
+              </a>
+            )}
+          </p>
+        )}
       </div>
     )
   }
