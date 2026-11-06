@@ -28,7 +28,7 @@ export async function POST(req: Request) {
   const notifications = profiles.map((p: { id: string }) => ({
     user_id: p.id,
     title: title.trim(),
-    message: message.trim(),
+    body: message.trim(),
     type: 'BROADCAST',
     is_read: false,
   }))

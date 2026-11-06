@@ -15,6 +15,13 @@ import {
   type Level, type Chapter, type Lesson,
 } from "@/lib/curriculum"
 
+import { JourneyVideos } from "@/components/formed/JourneyVideos"
+import { videosForLesson } from "@/lib/journey-videos"
+import {
+  getApprovedResources, getUserCompletedIds, markLessonComplete,
+  type TeachingResource,
+} from "@/lib/video-library"
+
 const STORAGE_KEY = 'formed_completed_lessons'
 
 type ActiveLesson = {
@@ -34,7 +41,32 @@ export default function JourneyPage() {
   const [expandedChapters, setExpandedChapters] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
 
+  const [approvedVideos, setApprovedVideos] = useState<TeachingResource[]>([])
+  const [watchedIds, setWatchedIds] = useState<Set<string>>(new Set())
+  const [userId, setUserId] = useState<string | null>(null)
+
   const totalLessons = getTotalLessons()
+
+  // Loaded separately so the slide curriculum still works if the video library is unavailable.
+  useEffect(() => {
+    async function loadVideos() {
+      try {
+        setApprovedVideos(await getApprovedResources())
+        const { data: { user } } = await createClient().auth.getUser()
+        if (user) {
+          setUserId(user.id)
+          setWatchedIds(new Set(await getUserCompletedIds(user.id)))
+        }
+      } catch {}
+    }
+    loadVideos()
+  }, [])
+
+  const markVideoWatched = async (resourceId: string) => {
+    if (!userId) return
+    setWatchedIds(prev => new Set(prev).add(resourceId))
+    await markLessonComplete(userId, resourceId)
+  }
 
   useEffect(() => {
     async function loadProgress() {
@@ -190,6 +222,13 @@ export default function JourneyPage() {
               <BookOpen size={12} /> Press play to watch the scripture series
             </p>
           )}
+
+          <JourneyVideos
+            key={`videos-${lesson.id}`}
+            videos={videosForLesson(lesson.id, approvedVideos)}
+            watchedIds={watchedIds}
+            onMarkWatched={markVideoWatched}
+          />
 
           <div className="bg-[#f8faf9] border border-[#e8f0ed] rounded-2xl p-5">
             <h3 className="font-bold text-sm text-[#1F5E4A] mb-2 flex items-center gap-2">
@@ -452,7 +491,9 @@ export default function JourneyPage() {
                                     {lesson.title}
                                   </p>
                                   <p className="text-xs text-gray-400 mt-0.5">
-                                    {lesson.slides.length} scriptures · {lesson.slides.length * 12}s video
+                                    {lesson.slides.length} scriptures
+                                    {videosForLesson(lesson.id, approvedVideos).length > 0 &&
+                                      ` · ${videosForLesson(lesson.id, approvedVideos).length} teaching video${videosForLesson(lesson.id, approvedVideos).length > 1 ? 's' : ''}`}
                                   </p>
                                 </div>
                                 {lComplete
