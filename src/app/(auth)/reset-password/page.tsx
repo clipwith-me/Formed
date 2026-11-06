@@ -27,8 +27,22 @@ export default function ResetPasswordPage() {
     })
 
     const code = new URLSearchParams(window.location.search).get("code")
+    const hash = new URLSearchParams(window.location.hash.slice(1))
+    const accessToken = hash.get("access_token")
+    const refreshToken = hash.get("refresh_token")
     const init = async () => {
-      if (code) {
+      if (hash.get("error")) {
+        setError("This reset link has expired or was already used. Request a new one.")
+        return
+      }
+      if (accessToken && refreshToken) {
+        const { error: sessionErr } = await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken })
+        if (sessionErr) {
+          setError("This reset link has expired or was already used. Request a new one.")
+          return
+        }
+        window.history.replaceState(null, "", "/reset-password")
+      } else if (code) {
         const { error: exErr } = await supabase.auth.exchangeCodeForSession(code)
         if (exErr) {
           setError("This reset link has expired or was already used. Request a new one.")
@@ -38,8 +52,7 @@ export default function ResetPasswordPage() {
       }
       const { data } = await supabase.auth.getSession()
       if (data.session) setSessionReady(true)
-      else if (!window.location.hash.includes("access_token"))
-        setError("This reset link couldn't be verified. Request a new one and open it on the same device.")
+      else setError("This reset link couldn't be verified. Request a new one.")
     }
     init()
 

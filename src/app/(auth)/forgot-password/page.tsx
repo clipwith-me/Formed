@@ -5,7 +5,7 @@ import { motion } from "framer-motion"
 import { Mail, ArrowLeft, CheckCircle2, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { createClient } from "@/lib/supabase/client"
+import { createClient as createSupabaseClient } from "@supabase/supabase-js"
 import Link from "next/link"
 import { AuthShell } from "@/components/formed/AuthShell"
 
@@ -26,7 +26,12 @@ export default function ForgotPasswordPage() {
     setLoading(true)
     setError("")
 
-    const supabase = createClient()
+    // Implicit flow: PKCE links only open in the browser that requested them, and email apps often use their own.
+    const supabase = createSupabaseClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      { auth: { flowType: "implicit", persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } }
+    )
     const { error: err } = await supabase.auth.resetPasswordForEmail(email.trim(), {
       redirectTo: `${window.location.origin}/reset-password`,
     })
