@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { motion } from "framer-motion"
-import { DailyVerse } from "@/components/formed/DailyVerse"
+import { HomeSlideshow } from "@/components/formed/HomeSlideshow"
 import { DiscipleshipProgress } from "@/components/formed/DiscipleshipProgress"
 import { PrayerCard } from "@/components/formed/PrayerCard"
 import { TestimonyCard } from "@/components/formed/TestimonyCard"
@@ -123,7 +123,7 @@ export default function HomePage() {
       </motion.div>
 
       <section>
-        <DailyVerse />
+        <HomeSlideshow lessonTitle={lessonTitle} testimony={testimonies.find(t => t.testimony.trim())} />
       </section>
 
       <section>
