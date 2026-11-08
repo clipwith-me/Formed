@@ -27,6 +27,7 @@ const NAV = [
   { label: "The Path", href: "#path" },
   { label: "Library", href: "#library" },
   { label: "Community", href: "#community" },
+  { label: "Give", href: "/give" },
 ]
 
 const PATH = [
@@ -481,7 +482,7 @@ export default function LandingPage() {
             <div>
               <h4 className={`${eyebrow} text-white/50`}>Account</h4>
               <ul className="mt-5 space-y-3 text-sm text-white/75">
-                {[["Create account", "/register"], ["Sign in", "/login"], ["Reset password", "/forgot-password"]].map(([l, h]) => (
+                {[["Give", "/give"], ["Create account", "/register"], ["Sign in", "/login"], ["Reset password", "/forgot-password"]].map(([l, h]) => (
                   <li key={h}><Link href={h} className="transition hover:text-white">{l}</Link></li>
                 ))}
               </ul>
