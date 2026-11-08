@@ -1,7 +1,9 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import Link from "next/link"
 import { motion } from "framer-motion"
+import { ChevronRight, UserPlus } from "lucide-react"
 import { HomeSlideshow } from "@/components/formed/HomeSlideshow"
 import { DiscipleshipProgress } from "@/components/formed/DiscipleshipProgress"
 import { PrayerCard } from "@/components/formed/PrayerCard"
@@ -121,6 +123,20 @@ export default function HomePage() {
         </h1>
         <p className="text-gray-500 mt-1">Continue your discipleship journey</p>
       </motion.div>
+
+      <Link
+        href="/followup/register"
+        className="flex items-center gap-3 rounded-2xl bg-[#1F5E4A] p-4 text-white shadow-sm transition hover:brightness-110"
+      >
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/15">
+          <UserPlus size={21} />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block font-bold">Add a new believer</span>
+          <span className="block text-sm text-white/75">Register someone who just gave their life to Christ</span>
+        </span>
+        <ChevronRight size={18} className="shrink-0 text-white/70" />
+      </Link>
 
       <section>
         <HomeSlideshow lessonTitle={lessonTitle} testimony={testimonies.find(t => t.testimony.trim())} />
