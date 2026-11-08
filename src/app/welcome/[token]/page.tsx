@@ -11,7 +11,6 @@ import { createClient } from '@/lib/supabase/client'
 
 export default function WelcomePage() {
   const { token } = useParams<{ token: string }>()
-  const [believerId, setBelieverId] = useState<string | null>(null)
   const [believerName, setBelieverName] = useState('')
   const [notFound, setNotFound] = useState(false)
   const [alreadyDone, setAlreadyDone] = useState(false)
@@ -37,16 +36,12 @@ export default function WelcomePage() {
   useEffect(() => {
     const load = async () => {
       const supabase = createClient()
-      const { data, error } = await supabase
-        .from('believers')
-        .select('id, full_name, profile_completed')
-        .eq('invite_token', token)
-        .single()
+      const { data: rows, error } = await supabase.rpc('get_believer_invite', { p_token: token })
+      const data = (rows as { full_name: string; profile_completed: boolean }[] | null)?.[0]
 
       if (error || !data) { setNotFound(true); setLoading(false); return }
       if (data.profile_completed) { setAlreadyDone(true); setLoading(false); return }
 
-      setBelieverId(data.id)
       setBelieverName(data.full_name)
       setLoading(false)
     }
@@ -58,21 +53,18 @@ export default function WelcomePage() {
     setError('')
     const supabase = createClient()
 
-    const { error: err } = await supabase
-      .from('believers')
-      .update({
-        age: form.age ? parseInt(form.age) : null,
-        gender: form.gender || null,
-        country: form.country || null,
-        city: form.city || null,
-        church: form.church || null,
-        date_of_conversion: form.date_of_conversion || null,
-        how_came_to_christ: form.how_came_to_christ || null,
-        prayer_needs: form.prayer_needs || null,
-        language: form.language,
-        profile_completed: true,
-      })
-      .eq('id', believerId)
+    const { error: err } = await supabase.rpc('complete_believer_invite', {
+      p_token: token,
+      p_age: form.age ? parseInt(form.age) : null,
+      p_gender: form.gender || null,
+      p_country: form.country || null,
+      p_city: form.city || null,
+      p_church: form.church || null,
+      p_date_of_conversion: form.date_of_conversion || null,
+      p_how_came_to_christ: form.how_came_to_christ || null,
+      p_prayer_needs: form.prayer_needs || null,
+      p_language: form.language,
+    })
 
     if (err) { setError(err.message); setSaving(false); return }
     setDone(true)
