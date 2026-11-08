@@ -10,6 +10,16 @@ import { createClient } from '@/lib/supabase/client'
 
 type ContactType = 'email' | 'phone'
 
+// wa.me needs the full international number; numbers without a country code are treated as Nigerian.
+function whatsappNumber(raw: string) {
+  const digits = raw.replace(/\D/g, '')
+  if (raw.trim().startsWith('+')) return digits
+  if (digits.startsWith('00')) return digits.slice(2)
+  if (digits.startsWith('0') && digits.length === 11) return `234${digits.slice(1)}`
+  if (digits.length === 10 && /^[789]/.test(digits)) return `234${digits}`
+  return digits
+}
+
 export default function RegisterBelieverPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
@@ -65,7 +75,8 @@ export default function RegisterBelieverPage() {
     const msg = encodeURIComponent(
       `Hi ${name}! 🎉 Welcome to FORMED — a discipleship platform built to help you grow in your faith.\n\nTap the link below to set up your profile:\n${inviteLink}`
     )
-    window.open(`https://wa.me/?text=${msg}`, '_blank')
+    const number = contactType === 'phone' ? whatsappNumber(contact) : ''
+    window.open(`https://wa.me/${number}?text=${msg}`, '_blank')
   }
 
   if (done) {
