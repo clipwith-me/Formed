@@ -525,6 +525,7 @@ export default function CommunityPage() {
                         <div className="flex items-center gap-2 min-w-0">
                           <Link href={`/profile/${post.author_id}`} className="text-sm font-semibold text-gray-800 truncate hover:text-[#1F5E4A] transition-colors">{post.author_name}</Link>
                           {currentUserId && post.author_id !== currentUserId && (
+                            <>
                             <button
                               onClick={() => handleFollow(post.author_id)}
                               disabled={followLoading.has(post.author_id)}
@@ -538,6 +539,10 @@ export default function CommunityPage() {
                                 ? <><UserCheck className="w-2.5 h-2.5" /> Following</>
                                 : <><UserPlus className="w-2.5 h-2.5" /> Follow</>}
                             </button>
+                            <Link href={`/messages?to=${post.author_id}`} className="flex flex-shrink-0 items-center gap-0.5 rounded-full border border-gray-300 px-2 py-0.5 text-[10px] font-semibold text-gray-500 transition-all hover:border-[#1F5E4A] hover:text-[#1F5E4A]">
+                              <Send className="h-2.5 w-2.5" /> Message
+                            </Link>
+                            </>
                           )}
                         </div>
                         <span className="text-xs text-gray-400 flex-shrink-0">{timeAgo(post.created_at)}</span>

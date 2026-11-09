@@ -59,6 +59,7 @@ export default function MessagesPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [searchResults, setSearchResults] = useState<Profile[]>([])
   const [searching, setSearching] = useState(false)
+  const [startError, setStartError] = useState("")
 
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -68,7 +69,15 @@ export default function MessagesPage() {
   useEffect(() => {
     const supabase = createClient()
     supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) { setCurrentUserId(user.id); loadConversations(user.id) }
+      if (!user) return
+      setCurrentUserId(user.id)
+      loadConversations(user.id)
+      const to = new URLSearchParams(window.location.search).get("to")
+      if (to && to !== user.id && /^[0-9a-f-]{36}$/i.test(to)) {
+        supabase.from("profiles").select("id, full_name").eq("id", to).maybeSingle().then(({ data }) => {
+          if (data) startConversation(data as Profile, user.id)
+        })
+      }
     })
     return () => { channelRef.current?.unsubscribe() }
   }, [])
@@ -221,17 +230,19 @@ export default function MessagesPage() {
     return () => clearTimeout(t)
   }, [searchQuery, currentUserId])
 
-  async function startConversation(other: Profile) {
-    if (!currentUserId) return
+  async function startConversation(other: Profile, uid: string | null = currentUserId) {
+    if (!uid) return
+    setStartError("")
     const supabase = createClient()
 
-    const { data: existing } = await supabase
+    const { data: existing, error: findError } = await supabase
       .from("conversations").select("*")
       .or(
-        `and(participant1_id.eq.${currentUserId},participant2_id.eq.${other.id}),` +
-        `and(participant1_id.eq.${other.id},participant2_id.eq.${currentUserId})`
+        `and(participant1_id.eq.${uid},participant2_id.eq.${other.id}),` +
+        `and(participant1_id.eq.${other.id},participant2_id.eq.${uid})`
       )
       .maybeSingle()
+    if (findError) { setStartError(`Couldn't open this chat: ${findError.message}`); return }
 
     let conv: Conversation
     if (existing) {
@@ -239,11 +250,11 @@ export default function MessagesPage() {
       const e = existing as any
       conv = { id: e.id, other_user_id: other.id, other_name: other.full_name ?? "Unknown", last_message: e.last_message ?? null, last_message_at: e.last_message_at ?? null, unread: 0 }
     } else {
-      const { data: created } = await supabase
+      const { data: created, error: createError } = await supabase
         .from("conversations")
-        .insert({ participant1_id: currentUserId, participant2_id: other.id })
+        .insert({ participant1_id: uid, participant2_id: other.id })
         .select("*").single()
-      if (!created) return
+      if (!created) { setStartError(`Couldn't start this chat: ${createError?.message ?? "please try again."}`); return }
       conv = {
         id: (created as { id: string }).id, other_user_id: other.id,
         other_name: other.full_name ?? "Unknown", last_message: null, last_message_at: null, unread: 0,
@@ -353,6 +364,8 @@ export default function MessagesPage() {
         </button>
       </div>
 
+      {startError && !showNew && <p role="alert" className="mb-3 rounded-xl border border-red-100 bg-red-50 p-3 text-sm text-red-700">{startError}</p>}
+
       {loadingConvs ? (
         <div className="flex justify-center py-12"><Loader2 className="w-5 h-5 animate-spin text-[#1F5E4A]" /></div>
       ) : conversations.length === 0 ? (
@@ -435,6 +448,7 @@ export default function MessagesPage() {
                     className="pl-9 h-10 text-sm" />
                 </div>
               </div>
+              {startError && <p role="alert" className="mx-4 mt-3 rounded-xl border border-red-100 bg-red-50 p-3 text-sm text-red-700">{startError}</p>}
               <div className="overflow-y-auto" style={{ maxHeight: "50vh" }}>
                 {searching ? (
                   <div className="flex justify-center py-8"><Loader2 className="w-4 h-4 animate-spin text-[#1F5E4A]" /></div>

@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { motion } from "framer-motion"
-import { ArrowLeft, CheckCircle, Loader2, UserCheck, UserPlus } from "lucide-react"
+import Link from "next/link"
+import { ArrowLeft, CheckCircle, Loader2, MessageCircle, UserCheck, UserPlus } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
@@ -151,7 +152,10 @@ export default function PublicProfilePage() {
         </div>
         {/* Follow button */}
         {!isOwnProfile && currentUserId && (
-          <div className="absolute bottom-3 right-3">
+          <div className="absolute bottom-3 right-3 flex items-center gap-2">
+            <Link href={`/messages?to=${id}`} className="flex items-center gap-2 rounded-full border border-[#1F5E4A] bg-white px-4 py-2 text-sm font-semibold text-[#1F5E4A] shadow">
+              <MessageCircle size={14} /> Message
+            </Link>
             <button
               onClick={handleFollow}
               disabled={followLoading}
