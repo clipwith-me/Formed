@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useState } from "react"
 import Link from "next/link"
-import { Bell, X, CheckCheck, CircleUser, User, LogOut, UserPlus, HeartHandshake } from "lucide-react"
+import { Bell, X, CheckCheck, CircleUser, User, LogOut, UserPlus, HeartHandshake, ShieldCheck, BookOpen, Images } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { motion, AnimatePresence } from "framer-motion"
 import { formatDistanceToNow } from "date-fns"
@@ -23,6 +23,7 @@ export function TopBar() {
   const menuRef = useRef<HTMLDivElement>(null)
   const [menuOpen, setMenuOpen] = useState(false)
   const [signingOut, setSigningOut] = useState(false)
+  const [isAdmin, setIsAdmin] = useState(false)
 
   useEffect(() => {
     if (!menuOpen) return
@@ -55,6 +56,8 @@ export function TopBar() {
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
+    const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+    setIsAdmin((profile as { role?: string } | null)?.role === 'ADMIN')
     const { data } = await supabase
       .from('notifications')
       .select('id, title, body, is_read, created_at')
@@ -114,6 +117,19 @@ export function TopBar() {
                 <Link href="/followup" onClick={() => setMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50">
                   <HeartHandshake size={16} /> Follow-up Hub
                 </Link>
+                {isAdmin && (
+                  <div className="border-t border-gray-100">
+                    {[
+                      { href: '/admin', label: 'Admin Panel', Icon: ShieldCheck },
+                      { href: '/admin/curriculum', label: 'Curriculum Review', Icon: BookOpen },
+                      { href: '/admin/slides', label: 'Home Slides', Icon: Images },
+                    ].map(({ href, label, Icon }) => (
+                      <Link key={href} href={href} onClick={() => setMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm font-medium text-amber-700 hover:bg-amber-50">
+                        <Icon size={16} /> {label}
+                      </Link>
+                    ))}
+                  </div>
+                )}
                 <button onClick={handleSignOut} disabled={signingOut} className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-red-600 hover:bg-red-50 border-t border-gray-100 disabled:opacity-60">
                   <LogOut size={16} /> {signingOut ? 'Signing out…' : 'Sign out'}
                 </button>
