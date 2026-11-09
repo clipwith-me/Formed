@@ -3,12 +3,13 @@
 import React, { useEffect, useState } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { Home, Compass, Heart, Users, User, Bell, Sun, Moon, LogOut, MessageCircle, BookOpen, GraduationCap, ShieldCheck } from "lucide-react"
+import { Home, Compass, Heart, Users, User, Sun, Moon, LogOut, MessageCircle, BookOpen, GraduationCap, ShieldCheck } from "lucide-react"
 import { useTheme } from "next-themes"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { NAV_ITEMS } from "@/lib/constants"
 import { cn } from "@/lib/utils"
 import { createClient } from "@/lib/supabase/client"
+import { SidebarNotifications } from "./SidebarNotifications"
 
 const iconMap: Record<string, React.ReactNode> = {
   Home: <Home size={20} />,
@@ -31,7 +32,6 @@ export function Sidebar() {
   const router = useRouter()
   const { theme, setTheme } = useTheme()
   const [user, setUser] = useState<SidebarUser | null>(null)
-  const [unread, setUnread] = useState(0)
 
   useEffect(() => {
     async function load() {
@@ -39,14 +39,10 @@ export function Sidebar() {
       const { data: { user: authUser } } = await supabase.auth.getUser()
       if (!authUser) return
 
-      const [{ data: profile }, { count }] = await Promise.all([
-        supabase.from('profiles').select('full_name, avatar_url, role').eq('id', authUser.id).single(),
-        supabase.from('notifications').select('*', { count: 'exact', head: true }).eq('user_id', authUser.id).eq('is_read', false),
-      ])
+      const { data: profile } = await supabase.from('profiles').select('full_name, avatar_url, role').eq('id', authUser.id).single()
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       if (profile) setUser(profile as any)
-      if (count !== null) setUnread(count)
     }
     load()
   }, [])
@@ -167,15 +163,7 @@ export function Sidebar() {
       {/* Bottom section */}
       <div className="px-3 py-4 border-t border-gray-100 space-y-1">
         {/* Notifications */}
-        <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-500 text-sm font-medium">
-          <Bell size={20} />
-          <span>Notifications</span>
-          {unread > 0 && (
-            <span className="ml-auto bg-[#1F5E4A] text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center font-bold px-1">
-              {unread > 9 ? '9+' : unread}
-            </span>
-          )}
-        </div>
+        <SidebarNotifications />
 
         {/* Theme toggle */}
         <button
