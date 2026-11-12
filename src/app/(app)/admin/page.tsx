@@ -14,10 +14,21 @@ type UserRow = {
   full_name: string | null
   role: string | null
   created_at: string
+  is_owner?: boolean
 }
+
+const ROLE_OPTIONS = [
+  { value: 'BELIEVER', label: 'Believer' },
+  { value: 'VOLUNTEER', label: 'Volunteer' },
+  { value: 'MENTOR', label: 'Mentor' },
+  { value: 'REVIEWER', label: 'Teaching reviewer' },
+  { value: 'ADMIN', label: 'Admin' },
+]
 
 export default function AdminPage() {
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null)
+  const [isOwner, setIsOwner] = useState(false)
+  const [roleError, setRoleError] = useState('')
   const [users, setUsers] = useState<UserRow[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -34,15 +45,16 @@ export default function AdminPage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { setIsAdmin(false); setLoading(false); return }
 
-      const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const role = (profile as any)?.role
+      const { data: profile } = await supabase.from('profiles').select('role, is_owner').eq('id', user.id).single()
+      const me = profile as { role?: string; is_owner?: boolean } | null
+      const role = me?.role
       setIsAdmin(role === 'ADMIN')
+      setIsOwner(!!me?.is_owner)
 
       if (role === 'ADMIN') {
         const { data } = await supabase
           .from('profiles')
-          .select('id, full_name, role, created_at')
+          .select('id, full_name, role, created_at, is_owner')
           .order('created_at', { ascending: false })
         setUsers((data as UserRow[]) ?? [])
       }
@@ -67,8 +79,13 @@ export default function AdminPage() {
   }
 
   const handleRoleChange = async (userId: string, newRole: string) => {
+    setRoleError('')
     const supabase = createClient()
-    await supabase.from('profiles').update({ role: newRole }).eq('id', userId)
+    const { data, error: err } = await supabase.from('profiles').update({ role: newRole }).eq('id', userId).select('id')
+    if (err || !data?.length) {
+      setRoleError(err?.message ?? "That role change wasn't saved. Run formed-roles.sql in Supabase, then try again.")
+      return
+    }
     setUsers(us => us.map(u => u.id === userId ? { ...u, role: newRole } : u))
   }
 
@@ -193,6 +210,10 @@ export default function AdminPage() {
           <Users className="w-5 h-5 text-[#1F5E4A]" />
           <h2 className="font-bold text-[#222222]">Members</h2>
         </div>
+        <p className="mb-3 text-xs leading-relaxed text-gray-500">
+          Teaching reviewers can approve or reject library teachings. Admins manage the whole platform.{isOwner ? ' As owner, only you can add or remove admins.' : ' Only the owner can add or remove admins.'}
+        </p>
+        {roleError && <p role="alert" className="mb-3 rounded-xl border border-red-100 bg-red-50 p-3 text-sm text-red-700">{roleError}</p>}
         <div className="space-y-2">
           {users.map((u, i) => (
             <motion.div key={u.id} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.04 }}
@@ -204,15 +225,23 @@ export default function AdminPage() {
                 <p className="text-sm font-semibold text-gray-800 truncate">{u.full_name ?? 'Unnamed'}</p>
                 <p className="text-xs text-gray-400">{new Date(u.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
               </div>
-              <select
-                value={u.role ?? 'BELIEVER'}
-                onChange={e => handleRoleChange(u.id, e.target.value)}
-                className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white text-gray-600 focus:outline-none focus:ring-1 focus:ring-[#1F5E4A]"
-              >
-                <option value="BELIEVER">Believer</option>
-                <option value="LEADER">Leader</option>
-                <option value="ADMIN">Admin</option>
-              </select>
+              {u.is_owner ? (
+                <span className="rounded-lg bg-amber-100 px-2.5 py-1.5 text-xs font-bold text-amber-800">Owner</span>
+              ) : u.role === 'ADMIN' && !isOwner ? (
+                <span className="rounded-lg bg-amber-50 px-2.5 py-1.5 text-xs font-semibold text-amber-700">Admin</span>
+              ) : (
+                <select
+                  value={u.role ?? 'BELIEVER'}
+                  onChange={e => handleRoleChange(u.id, e.target.value)}
+                  aria-label={`Role for ${u.full_name ?? 'member'}`}
+                  className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white text-gray-600 focus:outline-none focus:ring-1 focus:ring-[#1F5E4A]"
+                >
+                  {ROLE_OPTIONS.filter(o => isOwner || o.value !== 'ADMIN').map(o => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                  {!ROLE_OPTIONS.some(o => o.value === (u.role ?? 'BELIEVER')) && <option value={u.role ?? ''}>{u.role}</option>}
+                </select>
+              )}
             </motion.div>
           ))}
         </div>

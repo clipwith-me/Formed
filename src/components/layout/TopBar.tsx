@@ -24,6 +24,7 @@ export function TopBar() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [signingOut, setSigningOut] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
+  const [isReviewer, setIsReviewer] = useState(false)
 
   useEffect(() => {
     if (!menuOpen) return
@@ -57,7 +58,9 @@ export function TopBar() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
     const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
-    setIsAdmin((profile as { role?: string } | null)?.role === 'ADMIN')
+    const role = (profile as { role?: string } | null)?.role
+    setIsAdmin(role === 'ADMIN')
+    setIsReviewer(role === 'REVIEWER')
     const { data } = await supabase
       .from('notifications')
       .select('id, title, body, is_read, created_at')
@@ -120,6 +123,11 @@ export function TopBar() {
                 <Link href="/followup" onClick={() => setMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50">
                   <HeartHandshake size={16} /> Follow-up Hub
                 </Link>
+                {isReviewer && (
+                  <Link href="/admin/curriculum" onClick={() => setMenuOpen(false)} className="flex items-center gap-3 border-t border-gray-100 px-4 py-3 text-sm font-medium text-amber-700 hover:bg-amber-50">
+                    <BookOpen size={16} /> Curriculum Review
+                  </Link>
+                )}
                 {isAdmin && (
                   <div className="border-t border-gray-100">
                     {[

@@ -1,4 +1,4 @@
-export type UserRole = 'GUEST' | 'BELIEVER' | 'VOLUNTEER' | 'MENTOR' | 'CHURCH_ADMIN' | 'ADMIN'
+export type UserRole = 'GUEST' | 'BELIEVER' | 'VOLUNTEER' | 'MENTOR' | 'REVIEWER' | 'CHURCH_ADMIN' | 'ADMIN'
 export type PostType = 'TESTIMONY' | 'ARTICLE' | 'PRAYER' | 'QUESTION' | 'PRAISE' | 'MISSION_UPDATE'
 export type BelieverStatus = 'NEW' | 'ASSIGNED' | 'IN_PROGRESS' | 'COMPLETED' | 'MENTORED' | 'DISCIPLE_MAKER'
 export type MentorshipStatus = 'PENDING' | 'ACTIVE' | 'PAUSED' | 'COMPLETED'

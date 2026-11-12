@@ -141,6 +141,19 @@ export function Sidebar() {
           Library
         </Link>
 
+        {user?.role === 'REVIEWER' && (
+          <Link
+            href="/admin/curriculum"
+            className={cn(
+              "flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-sm transition-all duration-200",
+              pathname.startsWith('/admin/curriculum') ? "bg-amber-600 text-white" : "text-amber-600 hover:bg-amber-50"
+            )}
+          >
+            <ShieldCheck size={20} />
+            Curriculum Review
+          </Link>
+        )}
+
         {/* Admin link — visible only to ADMIN role */}
         {user?.role === 'ADMIN' && (
           <Link
