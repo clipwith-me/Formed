@@ -48,9 +48,10 @@ export default function CurriculumAdminPage() {
       const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single()
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const role = (profile as any)?.role
-      setIsAdmin(role === "ADMIN" || role === "CHURCH_ADMIN")
+      const canReview = role === "ADMIN" || role === "CHURCH_ADMIN" || role === "REVIEWER"
+      setIsAdmin(canReview)
 
-      if (role === "ADMIN" || role === "CHURCH_ADMIN") {
+      if (canReview) {
         const data = await getAdminResources()
         setResources(data)
         setFiltered(data)
