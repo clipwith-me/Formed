@@ -37,6 +37,9 @@ export const metadata: Metadata = {
     template: "%s · FORMED",
   },
   description: DESCRIPTION,
+  applicationName: "FORMED",
+  appleWebApp: { capable: true, title: "FORMED", statusBarStyle: "default" },
+  icons: { apple: "/icons/icon-180.png" },
   keywords: ["discipleship", "church", "Christian", "follow-up", "new believers", "mentorship", "Bible"],
   openGraph: {
     title: "FORMED — Faith is a journey of becoming",

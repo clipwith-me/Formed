@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { Bell, X, CheckCheck, CircleUser, User, LogOut, UserPlus, HeartHandshake, ShieldCheck, BookOpen, Images, MessageCircle } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
+import { InstallAppButton } from "@/components/formed/InstallApp"
 import { motion, AnimatePresence } from "framer-motion"
 import { formatDistanceToNow } from "date-fns"
 
@@ -141,6 +142,10 @@ export function TopBar() {
                     ))}
                   </div>
                 )}
+                <InstallAppButton
+                  label="Install the app"
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 border-t border-gray-100"
+                />
                 <button onClick={handleSignOut} disabled={signingOut} className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-red-600 hover:bg-red-50 border-t border-gray-100 disabled:opacity-60">
                   <LogOut size={16} /> {signingOut ? 'Signing out…' : 'Sign out'}
                 </button>

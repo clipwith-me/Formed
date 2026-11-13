@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState, useCallback } from "react"
 import Link from "next/link"
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion"
+import { InstallAppButton } from "@/components/formed/InstallApp"
 import {
   ArrowRight, ArrowUpRight, BookOpen, Users, HandHeart, UserPlus,
   MessageCircle, GraduationCap, Play, X, Menu, Check,
@@ -259,7 +260,11 @@ export default function LandingPage() {
                 Watch the film · 60s
               </button>
             </div>
-            <ul className="mt-10 flex flex-wrap gap-x-6 gap-y-2 text-sm" style={{ color: C.muted }}>
+            <InstallAppButton
+              label="Get the app on your phone"
+              className="mt-4 inline-flex h-11 items-center gap-2 rounded-full border px-5 text-sm font-semibold transition hover:bg-black/5"
+            />
+            <ul className="mt-8 flex flex-wrap gap-x-6 gap-y-2 text-sm" style={{ color: C.muted }}>
               {["Free for every believer", "No card required", "Works on any phone"].map((t) => (
                 <li key={t} className="flex items-center gap-2"><Check size={14} style={{ color: C.gold }} />{t}</li>
               ))}
