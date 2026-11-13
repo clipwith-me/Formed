@@ -23,6 +23,7 @@ import {
 } from "@/lib/video-library"
 
 const STORAGE_KEY = 'formed_completed_lessons'
+const OWNER_KEY = 'formed_completed_lessons_owner'
 
 type ActiveLesson = {
   level: Level
@@ -88,10 +89,17 @@ export default function JourneyPage() {
             .single()
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const dbIds: string[] = (data as any)?.completed_lessons ?? []
-          if (dbIds.length > 0) {
-            const merged = new Set(dbIds)
-            setCompletedIds(merged)
-            localStorage.setItem(STORAGE_KEY, JSON.stringify([...merged]))
+          let localIds: string[] = []
+          try {
+            if (localStorage.getItem(OWNER_KEY) === user.id) localIds = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]')
+            localStorage.setItem(OWNER_KEY, user.id)
+          } catch {}
+          // Keep lessons completed while offline, and send them up once we're back online.
+          const merged = new Set([...dbIds, ...localIds])
+          setCompletedIds(merged)
+          localStorage.setItem(STORAGE_KEY, JSON.stringify([...merged]))
+          if (merged.size > dbIds.length) {
+            await supabase.from('profiles').update({ completed_lessons: [...merged], discipleship_day: merged.size }).eq('id', user.id)
           }
         }
       } catch {}

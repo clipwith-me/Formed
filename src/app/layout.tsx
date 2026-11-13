@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next"
 import { Inter, Merriweather, Cormorant_Garamond } from "next/font/google"
 import { ThemeProvider } from "next-themes"
 import { OneSignalInit } from "@/components/OneSignalInit"
+import { OfflineSupport } from "@/components/formed/OfflineSupport"
 import "./globals.css"
 
 const inter = Inter({
@@ -81,6 +82,7 @@ export default function RootLayout({
           enableSystem={false}
         >
           <OneSignalInit />
+          <OfflineSupport />
           {children}
         </ThemeProvider>
       </body>
